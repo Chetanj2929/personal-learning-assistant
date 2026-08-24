@@ -1,0 +1,34 @@
+# --- Agent orchestration ---
+langgraph
+langchain
+langchain-core
+langchain-community
+
+# --- LLM (Groq: free, fast) ---
+langchain-groq
+
+# --- Vector store + local embeddings (no API key needed) ---
+langchain-chroma
+langchain-huggingface
+chromadb
+sentence-transformers
+
+# --- Document loading (for your notes/PDFs) ---
+pypdf
+python-docx
+docx2txt
+unstructured
+langchain-text-splitters
+
+# --- Web search fallback (free, no API key) ---
+ddgs
+
+# --- Backend + frontend ---
+fastapi
+uvicorn[standard]
+streamlit
+requests
+
+# --- Utilities ---
+python-dotenv
+pydantic

@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Secrets -- never commit these
+.env
+.streamlit/secrets.toml
+
+# Rebuilds automatically on startup (see main.py) -- no need to commit
+# a binary sqlite file, especially since it can get large
+data_vector_db/

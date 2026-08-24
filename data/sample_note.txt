@@ -1,0 +1,23 @@
+Deterministic Finite Automata (DFA)
+
+A Deterministic Finite Automaton (DFA) is a finite state machine that
+accepts or rejects strings of symbols by running through a sequence of
+states uniquely determined by the input string. It is "deterministic"
+because for each state and input symbol, there is exactly one transition
+to a next state — no ambiguity, no choice.
+
+Formally, a DFA is defined as a 5-tuple: (Q, Sigma, delta, q0, F)
+- Q: a finite set of states
+- Sigma: a finite input alphabet
+- delta: the transition function, Q x Sigma -> Q
+- q0: the initial state, where q0 is a member of Q
+- F: the set of accepting (final) states, a subset of Q
+
+Example: A DFA that accepts binary strings ending in "1" would have two
+states, Q = {q0, q1}. On reading a 0, it stays in or moves to q0 (reject
+state). On reading a 1, it moves to q1 (accept state). If the string ends
+while the DFA is in q1, the string is accepted.
+
+DFAs are used in lexical analysis (tokenizing source code in compilers),
+pattern matching, and modeling systems with a fixed, finite number of
+states, such as vending machines or traffic light controllers.

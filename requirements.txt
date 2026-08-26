@@ -7,10 +7,10 @@ langchain-community
 # --- LLM (Groq: free, fast) ---
 langchain-groq
 
-# --- Vector store + local embeddings (no API key needed) ---
-langchain-chroma
+# --- Vector store + cloud embeddings (Pinecone) ---
+langchain-pinecone
 langchain-huggingface
-chromadb
+pinecone-client
 sentence-transformers
 
 # --- Document loading (for your notes/PDFs) ---

@@ -7,7 +7,4 @@ __pycache__/
 .env
 .streamlit/secrets.toml
 
-# Vector DB rebuilds automatically on startup (see main.py lifespan handler)
-data_vector_db/
-
 # data/ is intentionally tracked so the PDF notes are available on Render

@@ -5,16 +5,23 @@ The "librarian" of the whole system. It knows how to:
   1. Read your notes (PDF, Word, plain text) from the data/ folder
   2. Chop them into small overlapping chunks
   3. Convert each chunk into a vector (numbers that capture its MEANING)
-  4. Store those vectors in Chroma, a local vector database
+  4. Store those vectors in Pinecone, a managed cloud vector database
   5. Given a new question, find the chunks whose meaning is closest to it
 
 This is what RAG (Retrieval-Augmented Generation) means: instead of the LLM
 guessing an answer from what it memorized during training, we hand it the
 actual relevant passages from YOUR notes first.
+
+Using Pinecone instead of local Chroma means:
+  - Vectors persist across redeploys (no re-ingestion on every cold start)
+  - No disk storage needed on the host
+  - Scales automatically
 """
 
+import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from langchain_community.document_loaders import (
     PyPDFLoader,
     Docx2txtLoader,
@@ -22,11 +29,13 @@ from langchain_community.document_loaders import (
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_chroma import Chroma
+from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
-VECTOR_DB_DIR = BASE_DIR / "data_vector_db"
 
 # Which loader to use, based on file extension
 LOADER_MAP = {
@@ -35,31 +44,44 @@ LOADER_MAP = {
     ".txt": TextLoader,
 }
 
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "learning-notes")
+
 
 class RAGService:
     def __init__(self):
-        # Local embedding model — runs on your machine, free, no API key.
+        # Local embedding model — runs on the server, free, no API key.
         # First run downloads it once (~90MB), then it's cached locally.
+        # Produces 384-dimensional vectors — must match the Pinecone index
+        # dimension set during index creation.
         self.embeddings = HuggingFaceEmbeddings(
             model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
-        # Chroma persists to disk, so notes you ingest stay available
-        # across restarts — you don't have to re-ingest every time.
-        self.vector_store = Chroma(
-            collection_name="learning_notes",
-            embedding_function=self.embeddings,
-            persist_directory=str(VECTOR_DB_DIR),
+        # Pinecone client — reads PINECONE_API_KEY from env automatically.
+        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        index = pc.Index(PINECONE_INDEX_NAME)
+
+        # LangChain wrapper around the Pinecone index. Uses the same
+        # .add_documents() / .similarity_search() interface as Chroma, so
+        # nothing else in the codebase needs to change.
+        self.vector_store = PineconeVectorStore(
+            index=index,
+            embedding=self.embeddings,
+            namespace="learning_notes",
         )
+
+        # Keep a direct reference to the Pinecone index for count().
+        self._index = index
 
     def ingest_folder(self, folder: str = str(DATA_DIR)) -> int:
         """
         Reads every supported file in `folder`, splits it into chunks,
-        and adds those chunks to the vector store.
+        and upserts those chunks into Pinecone.
 
-        Safe to re-run whenever you add new notes — it just adds more
-        chunks on top (doesn't currently de-duplicate re-ingested files,
-        worth knowing if you run this twice on the same file).
+        Because Pinecone is persistent, this only needs to run once (or
+        when you add new notes). The lifespan handler in main.py calls
+        this only when the index is empty, so you won't get duplicates
+        on normal redeploys.
 
         Returns the number of chunks added.
         """
@@ -103,9 +125,11 @@ class RAGService:
 
     def count(self) -> int:
         """
-        How many chunks are currently in the vector store. Used at startup
-        to decide whether we need to (re-)ingest data/ -- relevant on hosts
-        with EPHEMERAL storage (like Render's free tier), where the vector
-        store resets to empty on every fresh deploy.
+        How many vectors are currently in the Pinecone index namespace.
+        Used at startup to decide whether we need to (re-)ingest data/ --
+        with Pinecone, data persists across deploys so this will usually
+        be non-zero after the first run.
         """
-        return self.vector_store._collection.count()
+        stats = self._index.describe_index_stats()
+        ns_stats = stats.get("namespaces", {}).get("learning_notes", {})
+        return ns_stats.get("vector_count", 0)

@@ -6,8 +6,8 @@ services:
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: GROQ_API_KEY
-        sync: false          # you'll paste this in Render dashboard
-    disk:
-      name: data-volume
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+        sync: false          # paste in Render dashboard
+      - key: PINECONE_API_KEY
+        sync: false          # paste in Render dashboard
+      - key: PINECONE_INDEX_NAME
+        value: learning-notes

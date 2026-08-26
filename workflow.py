@@ -20,6 +20,7 @@ already know from state.
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 from langgraph.graph import StateGraph, END
@@ -63,7 +64,7 @@ def router_node(state: LearningState) -> LearningState:
 
     prompt = ROUTER_PROMPT.format(query=state["query"])
     response = _router_llm.invoke([HumanMessage(content=prompt)])
-    decision = response.content.strip().lower()
+    decision = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip().lower()
 
     if decision not in ("learning", "quiz", "research"):
         decision = "learning"  # safe default if the LLM answers oddly

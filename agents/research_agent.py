@@ -9,6 +9,7 @@ from the web rather than your own notes — so you always know the source.
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -63,7 +64,7 @@ class ResearchAgent:
             HumanMessage(content=f"Search results:\n{context}\n\nQuestion: {query}"),
         ]
         response = self.llm.invoke(messages)
-        answer = response.content.strip()
+        answer = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
 
         state["research_agent_output"] = (
             f"{answer}\n\n_(This wasn't in your notes — found via web search.)_"

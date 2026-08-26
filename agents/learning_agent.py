@@ -11,6 +11,7 @@ The "explainer." Given a question, it:
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -67,9 +68,9 @@ class LearningAgent:
         ]
 
         response = self.llm.invoke(messages)
-        answer = response.content.strip()
+        answer = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
 
-        if answer == NOT_FOUND_MARKER:
+        if NOT_FOUND_MARKER in answer:
             state["needs_research"] = True
             state["learning_agent_output"] = None
         else:

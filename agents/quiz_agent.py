@@ -15,6 +15,7 @@ The "examiner." Works in two phases, tracked by state['pending_question']:
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -81,7 +82,7 @@ class QuizAgent:
             HumanMessage(content=f"Context:\n{context}"),
         ]
         response = self.llm.invoke(messages)
-        question = response.content.strip()
+        question = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
 
         state["pending_question"] = question
         state["quiz_agent_output"] = question
@@ -96,7 +97,7 @@ class QuizAgent:
 
         prompt = GRADE_PROMPT.format(context=context, question=question, answer=answer)
         response = self.llm.invoke([HumanMessage(content=prompt)])
-        feedback = response.content.strip()
+        feedback = re.sub(r"<think>.*?</think>", "", response.content, flags=re.DOTALL).strip()
 
         state["quiz_agent_output"] = feedback
         state["last_quiz_result"] = feedback

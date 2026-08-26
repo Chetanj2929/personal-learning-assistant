@@ -1,18 +1,18 @@
 """
 app.py
 
-The Streamlit chat UI. Deliberately thin -- it just displays chat history
-and forwards each message to the FastAPI backend's /chat endpoint. All
-the actual thinking (routing, RAG, quizzing, research) happens
-server-side in main.py / workflow.py; this file only handles what the
-user SEES.
+The Streamlit chat UI. Calls the FastAPI backend at API_URL.
 
-LOCAL: run in a separate terminal from uvicorn, both at once:
-    Terminal 1:  python -m uvicorn main:app --reload
-    Terminal 2:  python -m streamlit run app.py
+In Docker (HF Spaces): FastAPI runs on localhost:8000 in the same container;
+Streamlit calls it via HTTP. HF Spaces exposes port 7860.
 
-DEPLOYED: set an API_URL secret in Streamlit Cloud pointing at your
-deployed backend, e.g. https://your-app.onrender.com/chat
+LOCAL (two terminals):
+    Terminal 1:  uvicorn main:app --reload
+    Terminal 2:  streamlit run app.py
+
+DEPLOYED (HF Spaces Docker):
+    Both processes start via start.sh inside one container.
+    API_URL defaults to http://localhost:8000/chat — no secrets needed.
 """
 
 import os
@@ -22,20 +22,21 @@ import streamlit as st
 
 
 def get_config(key: str, default: str) -> str:
-    """
-    Reads from Streamlit secrets first (used once deployed), falling back
-    to environment variables, then a default -- so local dev needs zero
-    config (no secrets.toml exists locally, so this just falls through).
-    """
+    """Reads from Streamlit secrets first, then env vars, then default."""
     try:
         return st.secrets[key]
     except (KeyError, FileNotFoundError):
         return os.getenv(key, default)
 
 
-API_URL = get_config("API_URL", "http://127.0.0.1:8000/chat")
+API_URL = get_config("API_URL", "http://localhost:8000/chat")
 
-st.set_page_config(page_title="Personal Learning Assistant", page_icon="📚", layout="centered")
+# ---------------------------------------------------------------------------
+# Page config & global styles
+# ---------------------------------------------------------------------------
+st.set_page_config(
+    page_title="Personal Learning Assistant", page_icon="📚", layout="centered"
+)
 
 st.markdown(
     """
@@ -82,7 +83,9 @@ SOURCE_LABELS = {
     "research": ("🌐 Web research", "source-research"),
 }
 
-# --- Sidebar: topic + reset ---
+# ---------------------------------------------------------------------------
+# Sidebar: topic + reset
+# ---------------------------------------------------------------------------
 with st.sidebar:
     st.header("⚙️ Settings")
     current_topic = st.text_input(
@@ -101,7 +104,9 @@ with st.sidebar:
         st.session_state["messages"] = []
         st.rerun()
 
-# --- Chat history ---
+# ---------------------------------------------------------------------------
+# Chat history
+# ---------------------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
 
@@ -115,7 +120,9 @@ for msg in st.session_state["messages"]:
                 unsafe_allow_html=True,
             )
 
-# --- New message ---
+# ---------------------------------------------------------------------------
+# New message — POST to the FastAPI backend (localhost:8000 in Docker)
+# ---------------------------------------------------------------------------
 user_input = st.chat_input("Ask a question, or say 'quiz me'...")
 
 if user_input:
@@ -134,7 +141,7 @@ if user_input:
                         "current_topic": current_topic,
                         "thread_id": "default",
                     },
-                    timeout=60,
+                    timeout=120,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -142,10 +149,12 @@ if user_input:
                 source = data["source"]
             except requests.exceptions.ConnectionError:
                 answer = (
-                    "Can't reach the backend. Make sure "
-                    "`python -m uvicorn main:app --reload` is running "
-                    "in another terminal (or check your deployed API_URL)."
+                    "⚠️ Can't reach the backend. In Docker mode this shouldn't "
+                    "happen — check container logs. Locally, make sure "
+                    "`uvicorn main:app --reload` is running."
                 )
+            except Exception as exc:
+                answer = f"⚠️ Something went wrong: {exc}"
 
         st.markdown(answer)
         if source:

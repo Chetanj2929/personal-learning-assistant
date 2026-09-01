@@ -69,7 +69,7 @@ class QuizAgent:
         if not chunks:
             state["quiz_agent_output"] = (
                 "I don't have any notes on that topic yet — add some to "
-                "the data/ folder and re-ingest before quizzing me on it."
+                "the data/ folder and re-ingest before quizzing you on it."
             )
             state["pending_question"] = None
             return state

@@ -27,7 +27,7 @@ class LearningState(TypedDict):
 
     # --- Routing ---
     router_decision: Optional[str]      # "learning" | "quiz" | "research"
-    needs_research: bool                # set True if the learning agent found nothing in your notes
+    needs_research: Optional[bool]       # set True if the learning agent found nothing in your notes
 
     # --- Each agent's output ---
     # Kept as separate fields (rather than overwriting one "answer" field)

@@ -10,7 +10,7 @@ langchain-groq
 # --- Vector store + cloud embeddings (Pinecone) ---
 langchain-pinecone
 langchain-huggingface
-pinecone-client
+pinecone
 sentence-transformers
 
 # --- Document loading (for your notes/PDFs) ---

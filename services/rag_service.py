@@ -29,8 +29,8 @@ from langchain_community.document_loaders import (
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
-from pinecone import Pinecone
+from langchain_pinecone import Pinecone as PineconeVectorStore
+from pinecone import Pinecone as PineconeClient
 
 load_dotenv()
 
@@ -58,7 +58,7 @@ class RAGService:
         )
 
         # Pinecone client — reads PINECONE_API_KEY from env automatically.
-        pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+        pc = PineconeClient(api_key=os.getenv("PINECONE_API_KEY"))
         index = pc.Index(PINECONE_INDEX_NAME)
 
         # LangChain wrapper around the Pinecone index. Uses the same
@@ -129,7 +129,12 @@ class RAGService:
         Used at startup to decide whether we need to (re-)ingest data/ --
         with Pinecone, data persists across deploys so this will usually
         be non-zero after the first run.
+
+        NOTE: pinecone v9 returns a DescribeIndexStatsResponse *object*,
+        not a plain dict, so we use attribute access, not .get().
         """
         stats = self._index.describe_index_stats()
-        ns_stats = stats.get("namespaces", {}).get("learning_notes", {})
-        return ns_stats.get("vector_count", 0)
+        # stats.namespaces is dict[str, NamespaceDescription]; each entry
+        # has a .vector_count attribute.
+        ns = stats.namespaces.get("learning_notes")
+        return ns.vector_count if ns is not None else 0
